@@ -2636,6 +2636,10 @@ static const struct of_device_id adsp_of_match[] = {
 	{ .compatible = "qcom,waipio-cdsp-pas", .data = &waipio_cdsp_resource},
 	{ .compatible = "qcom,waipio-slpi-pas", .data = &waipio_slpi_resource},
 	{ .compatible = "qcom,waipio-modem-pas", .data = &waipio_mpss_resource},
+	/* cape shares the waipio subsystem images and PAS IDs */
+	{ .compatible = "qcom,cape-adsp-pas", .data = &waipio_adsp_resource},
+	{ .compatible = "qcom,cape-cdsp-pas", .data = &waipio_cdsp_resource},
+	{ .compatible = "qcom,cape-modem-pas", .data = &waipio_mpss_resource},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, adsp_of_match);
