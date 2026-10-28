@@ -572,6 +572,8 @@ static void vx_create_debug_nodes(struct dentry *root, struct vx_platform_data *
 static const struct of_device_id drv_match_table[] = {
 	{ .compatible = "qcom,sys-pm-waipio",
 	  .data = drv_names_waipio },
+	{ .compatible = "qcom,sys-pm-cape",
+	  .data = drv_names_waipio },
 	{ .compatible = "qcom,sys-pm-kalama",
 	  .data = drv_names_kalama },
 	{ .compatible = "qcom,sys-pm-pineapple",
