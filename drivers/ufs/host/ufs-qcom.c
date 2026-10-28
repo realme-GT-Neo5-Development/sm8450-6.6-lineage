@@ -1162,8 +1162,14 @@ static int ufs_qcom_enable_hw_clk_gating(struct ufs_hba *hba)
 	 * irrespective of type of UFS device.
 	 */
 	if (of_property_read_bool(np, "disable-cgc")) {
-		err = ufshcd_dme_rmw(hba, PA_VS_CLK_CFG_REG_MASK,
-				PA_VS_CLK_CFG_REG_MASK1, PA_VS_CLK_CFG_REG);
+		struct ufs_clk_info *clki = list_first_entry(&hba->clk_list_head,
+						struct ufs_clk_info, list);
+		u32 val = PA_VS_CLK_CFG_REG_MASK1;
+
+		if (clk_get_rate(clki->clk) > UFS_QCOM_CGC_THRES_FREQ)
+			val |= PA_VS_CLK_CFG_ATTR_HW_CGC_EN;
+		err = ufshcd_dme_rmw(hba, PA_VS_CLK_CFG_REG_MASK, val,
+				     PA_VS_CLK_CFG_REG);
 	} else {
 		err = ufshcd_dme_rmw(hba, PA_VS_CLK_CFG_REG_MASK,
 				PA_VS_CLK_CFG_REG_MASK, PA_VS_CLK_CFG_REG);
@@ -4328,6 +4334,30 @@ static int ufs_qcom_set_dme_vs_core_clk_ctrl_clear_div(struct ufs_hba *hba,
 	return err;
 }
 
+/*
+ * On "disable-cgc" targets ATTR_HW_CGC_EN must follow the core clock: set
+ * above 300 MHz, clear at or below. Set it before scaling up and clear it
+ * after scaling down, so it is never clear while running fast.
+ */
+static int ufs_qcom_update_cgc_for_scaling(struct ufs_hba *hba, bool scale_up)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	struct ufs_clk_info *clki;
+	u32 freq;
+
+	if (!ufs_qcom_cap_qunipro_clk_gating(host) ||
+	    !of_property_read_bool(hba->dev->of_node, "disable-cgc"))
+		return 0;
+
+	clki = list_first_entry(&hba->clk_list_head, struct ufs_clk_info, list);
+	freq = scale_up ? clki->max_freq : clki->min_freq;
+
+	return ufshcd_dme_rmw(hba, PA_VS_CLK_CFG_ATTR_HW_CGC_EN,
+			      freq > UFS_QCOM_CGC_THRES_FREQ ?
+			      PA_VS_CLK_CFG_ATTR_HW_CGC_EN : 0,
+			      PA_VS_CLK_CFG_REG);
+}
+
 static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
 {
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
@@ -4335,6 +4365,10 @@ static int ufs_qcom_clk_scale_up_pre_change(struct ufs_hba *hba)
 	int err = 0;
 
 	if (!ufs_qcom_cap_qunipro(host))
+		goto out;
+
+	err = ufs_qcom_update_cgc_for_scaling(hba, true);
+	if (err)
 		goto out;
 
 	if (attr)
@@ -4398,6 +4432,10 @@ static int ufs_qcom_clk_scale_down_post_change(struct ufs_hba *hba)
 
 	if (!ufs_qcom_cap_qunipro(host))
 		return 0;
+
+	err = ufs_qcom_update_cgc_for_scaling(hba, false);
+	if (err)
+		return err;
 
 	if (attr)
 		ufs_qcom_cfg_timers(hba, attr->gear_rx, attr->pwr_rx,

@@ -229,6 +229,9 @@ enum ufs_qcom_phy_init_type {
 #define PA_VS_CLK_CFG_REG	0x9004
 #define PA_VS_CLK_CFG_REG_MASK	0x1FF
 #define PA_VS_CLK_CFG_REG_MASK1 0xFF
+#define PA_VS_CLK_CFG_ATTR_HW_CGC_EN	BIT(8)
+/* "disable-cgc" targets need ATTR_HW_CGC_EN only above this core clock */
+#define UFS_QCOM_CGC_THRES_FREQ	300000000
 
 #define PA_VS_CORE_CLK_40NS_CYCLES	0x9007
 #define PA_VS_CORE_CLK_40NS_CYCLES_MASK	0x3F
